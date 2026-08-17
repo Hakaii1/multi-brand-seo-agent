@@ -36,10 +36,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
@@ -76,6 +76,8 @@ jobs:
 
           echo "🚀 Generating content for ${BRAND} with keyword: ${KEYWORD}"
           npx tsx scripts/generate-seo-post.ts --brand "$BRAND" --keyword "$KEYWORD"
+          echo "GENERATED_BRAND=$BRAND" >> $GITHUB_ENV
+          echo "GENERATED_KEYWORD=$KEYWORD" >> $GITHUB_ENV
 
       # ── Verify All Content ───────────────────────────────────────────────
 
@@ -90,30 +92,30 @@ jobs:
       # ── Create PR ────────────────────────────────────────────────────────
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'content: add AI-generated post for ${{ github.event.inputs.brand || ''brand-a'' }}'
-          title: '📝 New AI Content: ${{ github.event.inputs.keyword || ''web development best practices'' }}'
+          commit-message: 'content: add AI-generated post for ${{ env.GENERATED_BRAND }}'
+          title: '📝 New AI Content: ${{ env.GENERATED_KEYWORD }}'
           body: |
             ## AI-Generated Content PR
 
-            **Brand:** `${{ github.event.inputs.brand || 'brand-a' }}`
-            **Keyword:** `${{ github.event.inputs.keyword || 'web development best practices' }}`
-            **Model:** `llama-3.3-70b-versatile`
+            **Brand:** `${{ env.GENERATED_BRAND }}`
+            **Keyword:** `${{ env.GENERATED_KEYWORD }}`
+            **Model:** `groq/compound-mini`
 
             ### Verification Results
             - ✅ Zod frontmatter schema validated
             - ✅ No duplicate slugs or keyword cannibalization
             - ✅ Heading hierarchy (max 1 H1) verified
-            - ✅ Internal link integrity checked
+            - ✅ Link integrity checked
+            - ✅ MDX syntax safeguard passed
             - ✅ Vitest suite passed
 
             ### Review Checklist
             - [ ] Content accuracy and quality reviewed
             - [ ] Brand tone consistency checked
-            - [ ] Internal linking opportunities assessed
-            - [ ] Ready to publish
+            - [ ] Ready to merge
           branch: 'content/seo-agent-${{ github.run_id }}'
           labels: |
             content
