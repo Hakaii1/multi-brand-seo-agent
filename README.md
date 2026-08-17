@@ -1,55 +1,56 @@
 # Multi-Brand SEO Agent
 
-An AI-powered multi-brand content platform with **deterministic verification**. Built with Next.js (App Router), Groq (Llama 3), and TypeScript.
+An AI-powered multi-brand content platform with **zero-trust deterministic verification**. Built with Next.js 14 (App Router), Groq AI (`groq/compound-mini`), and TypeScript.
 
-> **Key Principle:** The verification engine never trusts LLM output — every generated post is independently validated against strict Zod schemas, heading rules, duplicate checks, and link integrity before it can be merged.
+> **Key Principle:** The verification engine never trusts LLM output — every generated post is independently validated against strict Zod schemas, MDX syntax rules, heading limits, duplicate checks, and link integrity before it can be merged or deployed.
+
+Repository: [https://github.com/Hakaii1/multi-brand-seo-agent](https://github.com/Hakaii1/multi-brand-seo-agent)
 
 ---
 
-## Architecture
+## System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     CLI / GitHub Actions                     │
-│                                                             │
-│  npm run generate -- --brand brand-a --keyword "keyword"    │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │  Groq API   │  (llama-3.3-70b-versatile)
-                    │  or Mock    │  (fallback if no API key)
-                    └──────┬──────┘
-                           │
-                    ┌──────▼──────────────────────┐
-                    │  Candidate MDX File          │
-                    │  content/{brand}/{slug}.mdx  │
-                    └──────┬──────────────────────┘
-                           │
-              ┌────────────▼────────────────┐
-              │  Verification Engine         │
-              │                              │
-              │  ✓ Zod schema validation     │
-              │  ✓ Duplicate/cannibalization │
-              │  ✓ Heading hierarchy (≤1 H1) │
-              │  ✓ Link integrity            │
-              └────────────┬────────────────┘
-                           │
-              ┌────────────▼────────────────┐
-              │  Pass → Keep file            │
-              │  Fail → Delete + exit(1)     │
-              └────────────┬────────────────┘
-                           │
-              ┌────────────▼────────────────┐
-              │  Next.js Multi-Brand Site    │
-              │                              │
-              │  /brand-a/blog/{slug}        │
-              │  /brand-b/blog/{slug}        │
-              │                              │
-              │  • Dynamic metadata          │
-              │  • OpenGraph tags            │
-              │  • JSON-LD schema            │
-              │  • Canonical URLs            │
-              └─────────────────────────────┘
+```text
+ ┌─────────────────────────────────────────────────────────────┐
+ │                    CLI / GitHub Actions                     │
+ │  npx tsx scripts/generate-seo-post.ts brand-a <keyword>     │
+ └─────────────────────────────┬───────────────────────────────┘
+                               │
+                       ┌───────▼───────┐
+                       │   Groq API    │  (groq/compound-mini)
+                       │   or Mock     │  (offline fallback)
+                       └───────┬───────┘
+                               │ Returns MDX
+                       ┌───────▼───────┐
+                       │ Write Temp    │  content/{brand}/{slug}.mdx
+                       │ Candidate     │
+                       └───────┬───────┘
+                               │
+                       ┌───────▼──────────────────────┐
+                       │  Deterministic Verification  │
+                       │                              │
+                       │  1. Pre-Check Keyword Guard  │
+                       │  2. Zod Frontmatter Schema   │
+                       │  3. Slug Kebab Regex         │
+                       │  4. Max 1 H1 Tag Check       │
+                       │  5. Link Integrity           │
+                       │  6. MDX Syntax Safeguard     │
+                       └───────┬──────────────┬───────┘
+                               │              │
+                    FAILED ────┘              └──── PASSED
+                       │                               │
+             ┌─────────▼──────────┐         ┌──────────▼──────────┐
+             │ DELETE File from   │         │ KEEP File on Disk   │
+             │ Disk & Exit (1)    │         │ & Create Draft PR   │
+             └────────────────────┘         └──────────┬──────────┘
+                                                       │
+                                            ┌──────────▼──────────┐
+                                            │ Next.js Frontend    │
+                                            │ • Dynamic Metadata  │
+                                            │ • JSON-LD Schema    │
+                                            │ • OpenGraph Tags    │
+                                            │ • Brand Themes      │
+                                            └─────────────────────┘
 ```
 
 ---
@@ -66,7 +67,15 @@ npm install
 
 ```bash
 cp .env.example .env
-# Edit .env and add your Groq API key (optional — mock mode works without it)
+# Edit .env and add your Groq API key (optional — mock mode works offline)
+```
+
+In `.env`:
+```ini
+GROQ_API_KEY=gsk_your_groq_api_key
+GROQ_MODEL=groq/compound-mini
+NEXT_PUBLIC_SITE_URL=https://example.com
+NEXT_PUBLIC_GITHUB_REPO_URL=https://github.com/Hakaii1/multi-brand-seo-agent
 ```
 
 ### 3. Run Development Server
@@ -75,32 +84,41 @@ cp .env.example .env
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to see the multi-brand landing page.
+Visit [http://localhost:3000](http://localhost:3000) to view the multi-brand landing page.
 
-### 4. Generate Content
+### 4. Generate Content (Latest CLI Syntax)
+
+You can generate posts using either natural positional arguments or flag syntax:
 
 ```bash
-# With Groq API key (live mode)
-npm run generate -- --brand brand-a --keyword "react server components"
+# Natural Positional Arguments (Recommended)
+npx tsx scripts/generate-seo-post.ts brand-a react server components performance
+npx tsx scripts/generate-seo-post.ts brand-b core web vitals optimization
 
-# Without API key (mock mode — works offline)
-npm run generate -- --brand brand-b --keyword "core web vitals optimization"
+# Flag Syntax
+npx tsx scripts/generate-seo-post.ts --brand brand-a --keyword "edge computing web architecture"
 ```
 
-### 5. Verify Existing Content
+If `GROQ_API_KEY` is not present, it automatically uses the deterministic mock fallback so testing works offline.
+
+### 5. Verify Content Files
 
 ```bash
-# Verify all content files
+# Verify all content files across all brands
 npm run verify
 
-# Verify a specific file
+# Verify a specific file directly
 npx tsx scripts/verify-content.ts content/brand-a/modern-web-architecture.mdx
 ```
 
-### 6. Run Tests
+### 6. Run Test Suite & Build
 
 ```bash
+# Run Vitest test suite (12 test cases)
 npm test
+
+# Run Next.js production static build
+npm run build
 ```
 
 ---
@@ -109,97 +127,70 @@ npm test
 
 | Layer          | Technology                          |
 | -------------- | ----------------------------------- |
-| Framework      | Next.js 14 (App Router)             |
+| Framework      | Next.js 14 (App Router, SSG)        |
 | Language       | TypeScript (strict mode)            |
-| Styling        | Tailwind CSS                        |
-| Content        | MDX via `gray-matter` + `next-mdx-remote` |
-| AI             | Groq SDK (`llama-3.3-70b-versatile`) |
-| Validation     | Zod (schema), custom SEO checks     |
+| Styling        | Tailwind CSS (Dual brand palettes)  |
+| Content Engine | `gray-matter` + `next-mdx-remote`   |
+| AI Engine      | Groq SDK (`groq/compound-mini`)     |
+| Validation     | Zod + 6 Deterministic SEO Checks    |
 | Testing        | Vitest                              |
-| CI/CD          | GitHub Actions                      |
+| CI/CD          | GitHub Actions (Weekly cron schedule)|
 
 ---
 
-## Verification Engine
+## Verification Engine (6 Checks)
 
-The verification engine (`scripts/verify-content.ts`) performs 4 independent checks:
+The verification engine (`scripts/verify-content.ts` & `scripts/generate-seo-post.ts`) enforces 6 independent checks:
 
-### 1. Zod Schema Validation
-
-Validates frontmatter against strict constraints:
-
-- `title`: 20–65 characters
-- `description`: 50–160 characters
-- `slug`: lowercase kebab-case (`^[a-z0-9-]+$`)
-- `targetKeyword`: non-empty string
-- `publishedAt`: valid ISO 8601 date
-- `canonical`: valid URL
-- `brand`: `'brand-a'` or `'brand-b'`
-
-### 2. Duplicate / Cannibalization Check
-
-Scans the brand's content directory and rejects if:
-- A file with the same slug already exists
-- Another post targets the same keyword
-
-### 3. Heading Hierarchy
-
-Rejects content with more than one `# H1` heading — SEO best practice requires a single H1 per page.
-
-### 4. Link Integrity
-
-Validates internal markdown links:
-- No cross-brand linking (e.g., brand-a post linking to `/brand-b/...`)
-- No broken internal links to non-existent slugs
+1. **Pre-Check Keyword Guard:** Scans existing brand files before calling AI. Halts immediately if the keyword is already targeted to prevent cannibalization and token waste.
+2. **Zod Frontmatter Validation:**
+   - `title`: 20–65 characters (Google SERP limit)
+   - `description`: 50–160 characters (Meta description limit)
+   - `slug`: lowercase kebab-case (`^[a-z0-9-]+$`)
+   - `publishedAt`: Valid ISO date string
+   - `canonical`: Valid URL
+   - `brand`: `'brand-a'` or `'brand-b'`
+3. **Double-Quoted YAML Rules:** Ensures string fields in YAML are double-quoted so colons inside titles don't crash the YAML parser.
+4. **Heading Hierarchy Enforcement:** Enforces a maximum of 1 `# H1` tag per page for clean SEO structure.
+5. **Link Integrity Check:** Prevents cross-brand linking and checks internal markdown links against existing files.
+6. **MDX Syntax Safeguard:** Scans for unescaped `<` characters (e.g., `< 200 MB`), converting them to `under 200 MB` to prevent MDX/JSX compilation errors.
 
 ---
 
-## CI/CD Pipeline
+## CI/CD & Automated Topic Queue
 
-The GitHub Actions workflow (`.github/workflows/seo-agent-pr.yml`) supports:
+The GitHub Actions workflow (`.github/workflows/seo-agent-pr.yml`) automates content creation:
 
-- **Scheduled runs**: Weekly on Monday at 09:00 UTC
-- **Manual dispatch**: Trigger from the GitHub UI with custom brand and keyword inputs
-
-### Pipeline Steps
-
-1. Checkout & install dependencies
-2. Generate content via Groq AI (or mock fallback)
-3. Run verification engine on all content
-4. Execute Vitest test suite
-5. Create a draft PR for human review
-
-### Setup
-
-Add `GROQ_API_KEY` as a repository secret in **Settings → Secrets → Actions**.
+- **Schedule:** Every Monday at 09:00 UTC (`0 9 * * 1`)
+- **10-Topic Rotation Queue:** Uses calendar week modulo (`WEEK % 10`) to select a new, un-targeted technical keyword each week automatically.
+- **Manual Dispatch:** Supports manual runs from GitHub UI (`workflow_dispatch`) with custom brand and keyword inputs.
+- **Human Approval:** Automatically opens a Draft Pull Request on GitHub for 1-click review and deployment.
 
 ---
 
-## Project Structure
+## Project Directory Structure
 
-```
+```text
 ├── app/
 │   ├── layout.tsx              # Root layout with nav and footer
-│   ├── page.tsx                # Landing page
-│   ├── globals.css             # Global styles and brand themes
+│   ├── page.tsx                # Landing page displaying both brand showcases
+│   ├── globals.css             # Dark theme, glassmorphism, brand color tokens
 │   └── [brand]/
-│       ├── layout.tsx          # Brand-specific sub-layout
-│       ├── page.tsx            # Blog index page
-│       └── blog/
-│           └── [slug]/
-│               └── page.tsx    # Dynamic post with JSON-LD & OG tags
+│       ├── layout.tsx          # Brand sub-layout
+│       ├── page.tsx            # Brand blog index page
+│       └── blog/[slug]/
+│           └── page.tsx        # Dynamic post (MDX render, JSON-LD, OpenGraph)
 ├── content/
-│   ├── brand-a/                # Brand A content directory
-│   └── brand-b/                # Brand B content directory
+│   ├── brand-a/                # Brand A posts (Modern Engineering Hub)
+│   └── brand-b/                # Brand B posts (Technical SEO Authority)
 ├── scripts/
-│   ├── verify-content.ts       # Deterministic verification engine
-│   ├── generate-seo-post.ts    # Groq AI generation pipeline
-│   └── fixtures/               # Test fixture MDX files
+│   ├── verify-content.ts       # Core 6-point verification engine
+│   ├── generate-seo-post.ts    # Groq AI generation pipeline + pre-checks
+│   └── fixtures/               # Test fixture files for Vitest
 ├── tests/
-│   └── verification.test.ts    # Vitest test suite
-├── .github/
-│   └── workflows/
-│       └── seo-agent-pr.yml    # CI/CD workflow
+│   └── verification.test.ts    # Vitest test suite (12/12 passing)
+├── .github/workflows/
+│   └── seo-agent-pr.yml        # Weekly automated CI/CD workflow
 └── README.md
 ```
 
