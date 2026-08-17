@@ -57,14 +57,20 @@ jobs:
             BRAND="${{ github.event.inputs.brand }}"
             KEYWORD="${{ github.event.inputs.keyword }}"
           else
-            # Automated weekly schedule: pick topic based on week of year
+            # Automated weekly schedule: pick dynamic topic from 10-topic queue based on week of year
             WEEK=$(date +%V)
-            MOD=$((WEEK % 4))
+            MOD=$((WEEK % 10))
             case $MOD in
               0) BRAND="brand-a"; KEYWORD="react server components performance" ;;
               1) BRAND="brand-b"; KEYWORD="core web vitals optimization guide" ;;
               2) BRAND="brand-a"; KEYWORD="edge computing web architecture" ;;
               3) BRAND="brand-b"; KEYWORD="structured data schema markup" ;;
+              4) BRAND="brand-a"; KEYWORD="micro frontend architecture patterns" ;;
+              5) BRAND="brand-b"; KEYWORD="canonical tag best practices" ;;
+              6) BRAND="brand-a"; KEYWORD="typescript strict mode best practices" ;;
+              7) BRAND="brand-b"; KEYWORD="xml sitemap crawl budget optimization" ;;
+              8) BRAND="brand-a"; KEYWORD="incremental static regeneration guide" ;;
+              9) BRAND="brand-b"; KEYWORD="programmatic seo architecture" ;;
             esac
           fi
 
