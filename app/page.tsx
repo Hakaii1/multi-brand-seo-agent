@@ -125,8 +125,8 @@ export default function HomePage() {
 
         <div className="flex flex-col md:flex-row items-center justify-center gap-3">
           {[
-            { step: '1', label: 'CLI Trigger', sub: '--brand --keyword' },
-            { step: '2', label: 'Groq AI ⟶ MDX', sub: 'Llama 3 generation' },
+            { step: '1', label: 'CLI Trigger', sub: 'brand-a "keyword"' },
+            { step: '2', label: 'Groq AI ⟶ MDX', sub: 'compound-mini model' },
             { step: '3', label: 'Verify Content', sub: 'Zod + SEO checks' },
             { step: '4', label: 'PR for Review', sub: 'GitHub Actions CI' },
           ].map((item, i) => (
