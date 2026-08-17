@@ -43,20 +43,24 @@ function getPost(brand: string, slug: string): PostData | null {
   const files = fs.readdirSync(contentDir).filter((f) => f.endsWith('.mdx'));
 
   for (const file of files) {
-    const raw = fs.readFileSync(path.join(contentDir, file), 'utf-8');
-    const { data, content } = matter(raw);
+    try {
+      const raw = fs.readFileSync(path.join(contentDir, file), 'utf-8');
+      const { data, content } = matter(raw);
 
-    if (data.slug === slug) {
-      return {
-        title: data.title,
-        description: data.description,
-        slug: data.slug,
-        targetKeyword: data.targetKeyword,
-        publishedAt: data.publishedAt,
-        canonical: data.canonical,
-        brand: data.brand,
-        content,
-      };
+      if (data && data.slug === slug) {
+        return {
+          title: data.title,
+          description: data.description,
+          slug: data.slug,
+          targetKeyword: data.targetKeyword,
+          publishedAt: data.publishedAt,
+          canonical: data.canonical,
+          brand: data.brand,
+          content,
+        };
+      }
+    } catch {
+      continue;
     }
   }
 
@@ -73,10 +77,14 @@ function getAllPosts(): { brand: string; slug: string }[] {
 
     const files = fs.readdirSync(brandDir).filter((f) => f.endsWith('.mdx'));
     for (const file of files) {
-      const raw = fs.readFileSync(path.join(brandDir, file), 'utf-8');
-      const { data } = matter(raw);
-      if (data.slug) {
-        results.push({ brand, slug: data.slug });
+      try {
+        const raw = fs.readFileSync(path.join(brandDir, file), 'utf-8');
+        const { data } = matter(raw);
+        if (data && data.slug) {
+          results.push({ brand, slug: data.slug });
+        }
+      } catch {
+        continue;
       }
     }
   }

@@ -61,16 +61,22 @@ function getPostsForBrand(brand: string): PostMeta[] {
 
   return files
     .map((file) => {
-      const raw = fs.readFileSync(path.join(contentDir, file), 'utf-8');
-      const { data } = matter(raw);
-      return {
-        title: data.title as string,
-        description: data.description as string,
-        slug: data.slug as string,
-        publishedAt: data.publishedAt as string,
-        targetKeyword: data.targetKeyword as string,
-      };
+      try {
+        const raw = fs.readFileSync(path.join(contentDir, file), 'utf-8');
+        const { data } = matter(raw);
+        if (!data || !data.title || !data.slug) return null;
+        return {
+          title: data.title as string,
+          description: (data.description || '') as string,
+          slug: data.slug as string,
+          publishedAt: (data.publishedAt || new Date().toISOString()) as string,
+          targetKeyword: (data.targetKeyword || '') as string,
+        };
+      } catch {
+        return null;
+      }
     })
+    .filter((post): post is PostMeta => post !== null)
     .sort(
       (a, b) =>
         new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
