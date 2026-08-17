@@ -50,10 +50,24 @@ jobs:
       - name: Generate SEO content via Groq AI
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GROQ_MODEL: llama-3.3-70b-versatile
+          GROQ_MODEL: groq/compound-mini
         run: |
-          BRAND="${{ github.event.inputs.brand || 'brand-a' }}"
-          KEYWORD="${{ github.event.inputs.keyword || 'web development best practices' }}"
+          # If triggered manually, use input values; otherwise pick next topic in queue
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BRAND="${{ github.event.inputs.brand }}"
+            KEYWORD="${{ github.event.inputs.keyword }}"
+          else
+            # Automated weekly schedule: pick topic based on week of year
+            WEEK=$(date +%V)
+            MOD=$((WEEK % 4))
+            case $MOD in
+              0) BRAND="brand-a"; KEYWORD="react server components performance" ;;
+              1) BRAND="brand-b"; KEYWORD="core web vitals optimization guide" ;;
+              2) BRAND="brand-a"; KEYWORD="edge computing web architecture" ;;
+              3) BRAND="brand-b"; KEYWORD="structured data schema markup" ;;
+            esac
+          fi
+
           echo "🚀 Generating content for ${BRAND} with keyword: ${KEYWORD}"
           npx tsx scripts/generate-seo-post.ts --brand "$BRAND" --keyword "$KEYWORD"
 
