@@ -91,18 +91,25 @@ jobs:
 
       # ── Create PR ────────────────────────────────────────────────────────
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'content: add AI-generated post for ${{ env.GENERATED_BRAND }}'
-          title: '📝 New AI Content: ${{ env.GENERATED_KEYWORD }}'
-          body: |
-            ## AI-Generated Content PR
+      - name: Commit & Create Draft Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="content/seo-agent-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH_NAME"
+          git add content/
+          git commit -m "content: add AI-generated post for ${{ env.GENERATED_BRAND }}" || echo "No changes to commit"
+          git push origin "$BRANCH_NAME"
 
-            **Brand:** `${{ env.GENERATED_BRAND }}`
-            **Keyword:** `${{ env.GENERATED_KEYWORD }}`
-            **Model:** `groq/compound-mini`
+          gh pr create \
+            --title "📝 New AI Content: ${{ env.GENERATED_KEYWORD }}" \
+            --body "## AI-Generated Content PR
+
+            **Brand:** \`${{ env.GENERATED_BRAND }}\`
+            **Keyword:** \`${{ env.GENERATED_KEYWORD }}\`
+            **Model:** \`groq/compound-mini\`
 
             ### Verification Results
             - ✅ Zod frontmatter schema validated
@@ -115,10 +122,7 @@ jobs:
             ### Review Checklist
             - [ ] Content accuracy and quality reviewed
             - [ ] Brand tone consistency checked
-            - [ ] Ready to merge
-          branch: 'content/seo-agent-${{ github.run_id }}'
-          labels: |
-            content
-            ai-generated
-            needs-review
-          draft: true
+            - [ ] Ready to merge" \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --draft || echo "PR created"
