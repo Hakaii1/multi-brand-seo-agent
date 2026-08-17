@@ -166,6 +166,25 @@ export function checkLinkIntegrity(
   return errors;
 }
 
+// ─── Check: MDX Syntax Safeguard ───────────────────────────────────────────
+
+export function checkMdxSyntax(content: string): string[] {
+  const errors: string[] = [];
+  // Strip code blocks and inline code
+  const cleanContent = content
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`]+`/g, '');
+
+  // Check for unescaped `<` followed by space or digit (e.g. `< 200` or `<100`)
+  if (/<(?:\s*[\d\u202f\s]+)/g.test(cleanContent)) {
+    errors.push(
+      `MDX Syntax Error: Found unescaped "<" symbol followed by numbers or spaces. Write "under X" or "&lt;" instead to prevent MDX compilation errors`
+    );
+  }
+
+  return errors;
+}
+
 // ─── Main Verification Function ─────────────────────────────────────────────
 
 export function verifyContent(
@@ -216,6 +235,9 @@ export function verifyContent(
 
   // 5. Link integrity check
   errors.push(...checkLinkIntegrity(content, frontmatter));
+
+  // 6. MDX syntax check
+  errors.push(...checkMdxSyntax(content));
 
   return {
     valid: errors.length === 0,
