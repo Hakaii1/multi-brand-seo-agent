@@ -142,6 +142,7 @@ Content requirements:
 - Write 300+ words of substantive, original content
 - Include actionable insights, not just theory
 - Do not include any internal links
+- NEVER use unescaped "<" or ">" symbols in prose (e.g. write "under 50ms" instead of "< 50ms" or "over 100" instead of "> 100")
 - Make it informative and engaging for a technical audience
 - Use proper markdown formatting`;
 }
@@ -213,6 +214,9 @@ async function main(): Promise<void> {
       mdxContent = mdxContent
         .replace(/^```(?:mdx|markdown|md)?\n/i, '')
         .replace(/\n```\s*$/, '');
+
+      // Sanitize unescaped angle brackets followed by numbers (e.g. < 200 -> under 200)
+      mdxContent = mdxContent.replace(/<\s*(\d+)/g, 'under $1');
     } catch (error) {
       console.error('❌ Groq API error:', error);
       process.exit(1);
