@@ -158,6 +158,24 @@ async function main(): Promise<void> {
   console.log(`   Keyword: "${keyword}"`);
   console.log(`   Model:   ${apiKey ? model : 'MOCK (no GROQ_API_KEY)'}\n`);
 
+  // Pre-check: Reject if keyword is already targeted by an existing post
+  const brandDir = path.join(process.cwd(), 'content', brand);
+  if (fs.existsSync(brandDir)) {
+    const existingFiles = fs.readdirSync(brandDir).filter((f) => f.endsWith('.mdx'));
+    for (const file of existingFiles) {
+      try {
+        const raw = fs.readFileSync(path.join(brandDir, file), 'utf-8');
+        const keywordMatch = raw.match(/^targetKeyword:\s*"?([^"\n]+)"?\s*$/m);
+        if (keywordMatch && keywordMatch[1].trim().toLowerCase() === keyword.toLowerCase()) {
+          console.error(`❌ Keyword cannibalization guard: Target keyword "${keyword}" is already targeted by content/${brand}/${file}`);
+          process.exit(1);
+        }
+      } catch {
+        // Skip unreadable files
+      }
+    }
+  }
+
   let mdxContent: string;
 
   if (!apiKey) {
@@ -211,8 +229,6 @@ async function main(): Promise<void> {
         .replace(/\s+/g, '-');
 
   // Write candidate file
-  const contentDir = path.join(process.cwd(), 'content');
-  const brandDir = path.join(contentDir, brand);
   fs.mkdirSync(brandDir, { recursive: true });
 
   const filePath = path.join(brandDir, `${slug}.mdx`);
