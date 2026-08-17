@@ -1,0 +1,102 @@
+name: SEO Agent — Generate & Verify Content PR
+
+on:
+  # Run weekly on Monday at 09:00 UTC
+  schedule:
+    - cron: '0 9 * * 1'
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      brand:
+        description: 'Target brand (brand-a or brand-b)'
+        required: true
+        default: 'brand-a'
+        type: choice
+        options:
+          - brand-a
+          - brand-b
+      keyword:
+        description: 'Target keyword for the generated post'
+        required: true
+        default: 'web development best practices'
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate-and-verify:
+    name: Generate Content, Verify & Open PR
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Setup ────────────────────────────────────────────────────────────
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Generate Content ─────────────────────────────────────────────────
+
+      - name: Generate SEO content via Groq AI
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: llama-3.3-70b-versatile
+        run: |
+          BRAND="${{ github.event.inputs.brand || 'brand-a' }}"
+          KEYWORD="${{ github.event.inputs.keyword || 'web development best practices' }}"
+          echo "🚀 Generating content for ${BRAND} with keyword: ${KEYWORD}"
+          npx tsx scripts/generate-seo-post.ts --brand "$BRAND" --keyword "$KEYWORD"
+
+      # ── Verify All Content ───────────────────────────────────────────────
+
+      - name: Run verification engine on all content
+        run: npx tsx scripts/verify-content.ts --all
+
+      # ── Run Tests ────────────────────────────────────────────────────────
+
+      - name: Run Vitest test suite
+        run: npm test
+
+      # ── Create PR ────────────────────────────────────────────────────────
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'content: add AI-generated post for ${{ github.event.inputs.brand || ''brand-a'' }}'
+          title: '📝 New AI Content: ${{ github.event.inputs.keyword || ''web development best practices'' }}'
+          body: |
+            ## AI-Generated Content PR
+
+            **Brand:** `${{ github.event.inputs.brand || 'brand-a' }}`
+            **Keyword:** `${{ github.event.inputs.keyword || 'web development best practices' }}`
+            **Model:** `llama-3.3-70b-versatile`
+
+            ### Verification Results
+            - ✅ Zod frontmatter schema validated
+            - ✅ No duplicate slugs or keyword cannibalization
+            - ✅ Heading hierarchy (max 1 H1) verified
+            - ✅ Internal link integrity checked
+            - ✅ Vitest suite passed
+
+            ### Review Checklist
+            - [ ] Content accuracy and quality reviewed
+            - [ ] Brand tone consistency checked
+            - [ ] Internal linking opportunities assessed
+            - [ ] Ready to publish
+          branch: 'content/seo-agent-${{ github.run_id }}'
+          labels: |
+            content
+            ai-generated
+            needs-review
+          draft: true
