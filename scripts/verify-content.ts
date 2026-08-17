@@ -183,7 +183,18 @@ export function verifyContent(
     return { valid: false, errors: [`Cannot read file: ${filePath}`] };
   }
 
-  const { data, content } = matter(rawContent);
+  let data: Record<string, any>;
+  let content: string;
+  try {
+    const parsedMatter = matter(rawContent);
+    data = parsedMatter.data;
+    content = parsedMatter.content;
+  } catch (err: any) {
+    return {
+      valid: false,
+      errors: [`Frontmatter YAML Syntax Error: ${err.message || 'Invalid YAML format'}`],
+    };
+  }
 
   // 2. Zod schema validation
   const parsed = FrontmatterSchema.safeParse(data);

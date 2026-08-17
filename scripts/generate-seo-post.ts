@@ -26,8 +26,8 @@ loadEnv();
 
 function parseArgs(): { brand: string; keyword: string } {
   const args = process.argv.slice(2);
-  let brand = 'brand-a';
-  let keyword = 'web development best practices';
+  let brand = '';
+  let keyword = '';
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--brand' && args[i + 1]) {
@@ -38,6 +38,21 @@ function parseArgs(): { brand: string; keyword: string } {
       i++;
     }
   }
+
+  // Fallback to positional arguments if flags weren't used
+  if (!brand && args.length > 0) {
+    if (['brand-a', 'brand-b'].includes(args[0])) {
+      brand = args[0];
+      if (!keyword && args.length > 1) {
+        // Join remaining arguments as the keyword
+        keyword = args.slice(1).filter((a) => !a.startsWith('--')).join(' ');
+      }
+    }
+  }
+
+  // Defaults
+  brand = brand || 'brand-a';
+  keyword = keyword || 'web development best practices';
 
   if (!['brand-a', 'brand-b'].includes(brand)) {
     console.error(`Invalid brand "${brand}". Must be "brand-a" or "brand-b".`);
@@ -113,12 +128,12 @@ function buildSystemPrompt(brand: string, keyword: string): string {
 
 CRITICAL: Your response must be ONLY the raw MDX content. Do not wrap it in code blocks or add any explanation.
 
-The post MUST begin with valid YAML frontmatter between --- delimiters containing EXACTLY these fields:
-- title: A compelling, SEO-optimized title (MUST be between 20-65 characters)
-- description: Meta description (MUST be between 50-160 characters)
-- slug: URL slug in lowercase kebab-case matching regex ^[a-z0-9-]+$
+The post MUST begin with valid YAML frontmatter between --- delimiters containing EXACTLY these fields (ALL string values MUST be wrapped in double quotes):
+- title: "A compelling, SEO-optimized title (MUST be between 20-65 characters)"
+- description: "Meta description (MUST be between 50-160 characters)"
+- slug: "URL slug in lowercase kebab-case matching regex ^[a-z0-9-]+$"
 - targetKeyword: "${keyword}"
-- publishedAt: Today's date as ISO 8601 string (e.g., "2026-08-15T00:00:00.000Z")
+- publishedAt: "${new Date().toISOString()}"
 - canonical: "https://example.com/${brand}/blog/{slug}"
 - brand: "${brand}"
 
